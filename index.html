@@ -55,9 +55,10 @@
   .seg button.on-si{background:var(--ok);border-color:var(--ok);color:#04210f}
   .seg button.on-no{background:var(--no);border-color:var(--no);color:#2a0606}
   .seg.num button.on{background:var(--acc);border-color:var(--acc);color:#04182b}
-  .photo{margin-top:12px;display:flex;align-items:center;gap:12px}
+  .photo{display:flex;align-items:center;gap:10px}
   .photo input{display:none}
-  .shot{flex:1;padding:13px;border-radius:12px;border:1px dashed #3a5069;background:var(--card2);color:var(--txt);font-size:14px;font-weight:600;text-align:center}
+  .shots{flex:1;display:flex;gap:8px}
+  .shot{flex:1;padding:12px 4px;border-radius:12px;border:1px dashed #3a5069;background:var(--card2);color:var(--txt);font-size:13px;font-weight:600;text-align:center}
   .shot.has{border-style:solid;border-color:#22c55e88;color:#8ff0b6}
   .req{color:#f59e0b;font-weight:700}
   .thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--line);display:none}
@@ -236,12 +237,11 @@ $('#clear').addEventListener('click',async()=>{
 
 function render(){
   const ds=dsSel.value;
-  state.forEach(it=>{ if(it.url) URL.revokeObjectURL(it.url); }); // libera memoria object URL
   list.innerHTML='';
   if(!ds){list.innerHTML='<div class="empty">Seleziona prima la tua DS ↑</div>';$('#prog').style.display='none';$('#draftbar').style.display='none';hideBanner();updateSend();return;}
   $('#prog').style.display='block';
   $('#draftbar').style.display=storageOK?'flex':'none';
-  state=DATA[ds].map(x=>({m:x.m,n:x.n,refrig:null,bott:null,file:null,url:null,b64:null}));
+  state=DATA[ds].map(x=>({m:x.m,n:x.n,refrig:null,bott:null,b64:null}));
   state.forEach((it,i)=>list.appendChild(cardEl(it,i)));
   updateProgress();
   hideBanner();
@@ -256,30 +256,43 @@ function cardEl(it,i){
       <div class="seg"><button type="button" data-a="si">SÌ</button><button type="button" data-a="no">NO</button></div></div>
     <div class="q"><span>B) Quante <b>bottiglie da 0,5 L</b> ci stanno?</span>
       <div class="seg num"><button type="button" data-b="0">0</button><button type="button" data-b="1">1</button><button type="button" data-b="2">2</button><button type="button" data-b="3">3</button></div></div>
-    <div class="photo"><label class="shot" for="f${i}">📷 Foto <span class="req">obbligatoria</span></label>
-      <input id="f${i}" type="file" accept="image/*" capture="environment"><img class="thumb" id="t${i}" alt=""></div>`;
+    <div class="q"><span>C) Foto del vano <span class="req">obbligatoria</span></span>
+      <div class="photo">
+        <div class="shots">
+          <label class="shot" for="fc${i}">📷 Scatta foto</label>
+          <label class="shot" for="fg${i}">🖼️ Dalla galleria</label>
+        </div>
+        <input id="fc${i}" type="file" accept="image/*" capture="environment">
+        <input id="fg${i}" type="file" accept="image/*">
+        <img class="thumb" id="t${i}" alt="">
+      </div></div>`;
   c.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{it.refrig=b.dataset.a;
     c.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on-si','on-no'));
     b.classList.add(b.dataset.a==='si'?'on-si':'on-no');mark(i);saveDraftNow();}));
   c.querySelectorAll('[data-b]').forEach(b=>b.addEventListener('click',()=>{it.bott=b.dataset.b;
     c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));b.classList.add('on');mark(i);saveDraftNow();}));
-  c.querySelector('#f'+i).addEventListener('change',async e=>{
-    const f=e.target.files[0];if(!f)return;
-    const t=c.querySelector('#t'+i), lab=c.querySelector('label.shot');
-    it.file=f; if(it.url)URL.revokeObjectURL(it.url); it.url=URL.createObjectURL(f);
-    t.src=it.url;t.classList.add('show');
-    lab.classList.add('has');lab.innerHTML='⏳ Elaborazione foto…';
+  const t=c.querySelector('#t'+i), shots=c.querySelectorAll('.shot');
+  const wirePhoto=inputEl=>inputEl.addEventListener('change',async e=>{
+    const f=e.target.files[0]; e.target.value=''; if(!f)return;
+    shots.forEach(s=>s.textContent='⏳ Elaborazione…');
+    // Foto già mostrata come miniatura SOLO dopo il resize: evita di decodificare due volte
+    // (anteprima + ridimensionamento) lo stesso scatto ad altissima risoluzione (Samsung 50-108MP),
+    // che è ciò che mandava in crash la scheda del browser dopo alcune foto.
     const b64=await resize(f);
     if(b64){
-      it.b64=b64; lab.innerHTML='📷 Rifai foto';
+      it.b64=b64; t.src=b64; t.classList.add('show');
+      shots.forEach(s=>s.classList.add('has'));
+      shots[0].textContent='📷 Rifai (fotocamera)'; shots[1].textContent='🖼️ Rifai (galleria)';
     }else{
-      // Foto non elaborabile (formato non decodificabile es. HEIC da galleria, o troppo grande): non contarla.
-      it.b64=null; if(it.url){URL.revokeObjectURL(it.url);it.url=null;}
-      t.src='';t.classList.remove('show');lab.classList.remove('has');
-      lab.innerHTML='📷 Foto <span class="req">obbligatoria</span>';
-      alert('Non riesco a elaborare questa foto (formato o dimensione non supportati). Riscattala con la FOTOCAMERA invece di sceglierla dalla galleria.');
+      it.b64=null; t.src=''; t.classList.remove('show');
+      shots.forEach(s=>s.classList.remove('has'));
+      shots[0].textContent='📷 Scatta foto'; shots[1].textContent='🖼️ Dalla galleria';
+      alert('Non riesco a elaborare questa foto (formato o dimensione non supportati). Riprova con l\'altra opzione (fotocamera/galleria) o con un\'altra foto.');
     }
-    mark(i); saveDraftNow();});
+    mark(i); saveDraftNow();
+  });
+  wirePhoto(c.querySelector('#fc'+i));
+  wirePhoto(c.querySelector('#fg'+i));
   return c;
 }
 /* Riporta lo stato salvato di un modello sulla card (usato dal ripristino bozza). */
@@ -290,7 +303,8 @@ function paintCard(i){
   c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));
   if(it.bott!=null){ const b=c.querySelector('[data-b="'+it.bott+'"]'); if(b) b.classList.add('on'); }
   if(it.b64){ const t=c.querySelector('#t'+i); t.src=it.b64; t.classList.add('show');
-    const lab=c.querySelector('label.shot'); lab.classList.add('has'); lab.innerHTML='📷 Rifai foto'; }
+    const shots=c.querySelectorAll('.shot'); shots.forEach(s=>s.classList.add('has'));
+    if(shots[0]) shots[0].textContent='📷 Rifai (fotocamera)'; if(shots[1]) shots[1].textContent='🖼️ Rifai (galleria)'; }
   mark(i);
 }
 function complete(it){return it.refrig!==null&&it.bott!==null&&it.b64!=null;}
@@ -302,13 +316,16 @@ function updateSend(){const nome=$('#nome').value.trim();
   const ok=dsSel.value&&nome&&state.some(complete)&&!state.some(partial);
   sendBtn.disabled=!ok;}
 
-/* Ridimensiona qualunque foto (iPhone HEIC/JPEG, Samsung ad alta risoluzione) a max 1400px
-   sul lato lungo, output SEMPRE JPEG q0.72. Robusto per non buggare/crashare:
-   - createImageBitmap come strada preferita: decode efficiente e orientamento EXIF corretto;
-   - fallback a FileReader+Image se non disponibile;
+/* Ridimensiona qualunque foto (iPhone HEIC/JPEG, Samsung ad alta risoluzione, anche 50-108MP)
+   a max 1280px sul lato lungo, output SEMPRE JPEG q0.68. Robusto per non buggare/crashare:
+   - createImageBitmap con resizeWidth come strada preferita: fa decodificare al browser
+     un'immagine GIA' RIDOTTA (circa 1600px) invece della foto a piena risoluzione. Una singola
+     foto Samsung da 108MP decodificata per intero può occupare 400+MB di RAM in un istante e
+     mandare in crash la scheda del browser sul telefono: questo evita l'allocazione enorme;
+   - fallback a createImageBitmap senza resize, poi a FileReader+Image se non disponibili;
    - gestione onerror (es. HEIC non decodificabile) e timeout: la Promise si risolve SEMPRE;
    - risolve null se non è possibile elaborare, così il chiamante avvisa e non conta la foto. */
-const MAXDIM=1280, JPEG_Q=0.68;
+const MAXDIM=1280, JPEG_Q=0.68, DECODE_HINT=1600;
 function fit(w,h){let W=w,H=h;
   if(w>=h && w>MAXDIM){H=Math.round(h*MAXDIM/w);W=MAXDIM;}
   else if(h>w && h>MAXDIM){W=Math.round(w*MAXDIM/h);H=MAXDIM;}
@@ -328,8 +345,11 @@ function resize(file){
     if(typeof createImageBitmap==='function'){
       (async()=>{
         let bmp=null;
-        try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }
-        catch(e){ try{ bmp=await createImageBitmap(file); }catch(e2){ bmp=null; } }
+        try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image',resizeWidth:DECODE_HINT,resizeQuality:'medium'}); }
+        catch(e){
+          try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }
+          catch(e2){ try{ bmp=await createImageBitmap(file); }catch(e3){ bmp=null; } }
+        }
         if(bmp){
           let out=null;
           try{ const {W,H}=fit(bmp.width,bmp.height); out=drawToJpeg(bmp,W,H); }catch(e){}
