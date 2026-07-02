@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Test Vani — Rilevazione DS</title>
+<style>
+  :root{--bg:#0f1720;--card:#18232f;--card2:#1e2c3a;--line:#2b3b4c;--txt:#eef4fa;--mut:#9fb3c6;
+    --acc:#1e88e5;--ok:#22c55e;--no:#ef4444;--warn:#f59e0b;--chip:#243444}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;padding:env(safe-area-inset-top) 0 0 0}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0f1720,#0f1720ee);
+    padding:14px 16px 10px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  h1{margin:0;font-size:18px}
+  .sub{color:var(--mut);font-size:12.5px;margin-top:3px}
+  .rspp{color:#ffd7a6;font-size:11.5px;margin-top:7px;line-height:1.35;border-left:3px solid var(--warn);padding-left:8px}
+  .saveind{position:absolute;right:14px;top:12px;background:#173a26;border:1px solid #22c55e66;color:#8ff0b6;
+    font-size:10.5px;padding:4px 9px;border-radius:99px;opacity:0;transition:opacity .25s;pointer-events:none;font-weight:600}
+  .saveind.show{opacity:1}
+  .wrap{padding:14px 16px 130px;max-width:640px;margin:0 auto}
+  label.fld{display:block;font-size:12.5px;color:var(--mut);margin:12px 2px 5px}
+  input[type=text],select{width:100%;padding:13px 12px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card);color:var(--txt);font-size:16px;appearance:none}
+  select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%239fb3c6'><path d='M5 8l5 5 5-5z'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:38px}
+  .notice{margin:12px 2px 2px;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.4;display:none}
+  .notice.ok{display:block;background:#0f2e1c;border:1px solid #22c55e55;color:#a8f0c4}
+  .notice.bad{display:block;background:#3a1414;border:1px solid #ef444488;color:#ffd0d0;font-weight:600}
+  .banner{margin:12px 2px 2px;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.4;
+    background:#132a3f;border:1px solid #1e88e588;color:#bfe0ff;display:none;align-items:center;justify-content:space-between;gap:10px}
+  .banner.show{display:flex}
+  .banner button{background:none;border:0;color:#bfe0ff;font-size:16px;line-height:1;padding:0 2px;cursor:pointer}
+  .progress{margin:14px 2px 2px;font-size:13px;color:var(--mut)}
+  .bar{height:8px;border-radius:99px;background:var(--card);overflow:hidden;margin:6px 0 2px}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1e88e5,#22c55e);transition:width .25s}
+  .draftbar{display:none;justify-content:flex-end;margin:8px 2px 0}
+  .clearbtn{background:none;border:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:5px 11px;border-radius:99px;cursor:pointer}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 1px 0 #0006}
+  .card.done{border-color:#22c55e55;background:linear-gradient(180deg,#18232f,#182a24)}
+  .card.partial{border-color:#f59e0b66}
+  .mname{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .count{font-size:11.5px;color:var(--mut);background:var(--chip);padding:2px 8px;border-radius:99px;font-weight:500}
+  .flag{font-size:11px;color:#0f1720;background:var(--warn);padding:2px 8px;border-radius:99px;font-weight:700}
+  .q{margin-top:12px}
+  .q>span{font-size:13px;color:var(--mut);display:block;margin-bottom:7px}
+  .seg{display:flex;gap:8px}
+  .seg button{flex:1;padding:12px 0;border-radius:11px;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:15px;font-weight:600}
+  .seg button.on-si{background:var(--ok);border-color:var(--ok);color:#04210f}
+  .seg button.on-no{background:var(--no);border-color:var(--no);color:#2a0606}
+  .seg.num button.on{background:var(--acc);border-color:var(--acc);color:#04182b}
+  .photo{margin-top:12px;display:flex;align-items:center;gap:12px}
+  .photo input{display:none}
+  .shot{flex:1;padding:13px;border-radius:12px;border:1px dashed #3a5069;background:var(--card2);color:var(--txt);font-size:14px;font-weight:600;text-align:center}
+  .shot.has{border-style:solid;border-color:#22c55e88;color:#8ff0b6}
+  .req{color:#f59e0b;font-weight:700}
+  .thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--line);display:none}
+  .thumb.show{display:block}
+  footer{position:fixed;left:0;right:0;bottom:0;background:#0f1720f2;border-top:1px solid var(--line);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));backdrop-filter:blur(6px);z-index:30}
+  .send{width:100%;max-width:640px;margin:0 auto;display:block;padding:16px;border-radius:14px;border:0;background:var(--ok);color:#04210f;font-size:16px;font-weight:800;letter-spacing:.3px}
+  .send:disabled{background:#33414f;color:#7d8ea0}
+  .foot2{max-width:640px;margin:6px auto 0;display:flex;justify-content:space-between;gap:10px}
+  .mini{background:none;border:0;color:var(--mut);font-size:12px;text-decoration:underline}
+  .hint{font-size:12px;color:var(--mut);margin-top:4px}
+  .empty{color:var(--mut);text-align:center;padding:40px 10px;font-size:14px}
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#22c55e;color:#04210f;
+    padding:12px 18px;border-radius:12px;font-weight:700;box-shadow:0 8px 24px #0008;z-index:50;display:none;max-width:90%}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚐 Test Vani — Vano refrigerato &amp; Bottiglie</h1>
+  <div class="sub">Per ogni modello: Sì/No, numero bottiglie <b>0,5 L</b>, <span class="req">foto obbligatoria</span>.</div>
+  <div class="rspp">Raccolta a supporto del <b>RSPP</b> (Servizio Prevenzione e Protezione): documenta la reale possibilità di tenere <b>refrigerate</b> le borracce degli autisti nei turni estivi. È la base per la valutazione del <b>rischio caldo</b> — compila con cura.</div>
+  <span id="saveind" class="saveind">✓ Salvato sul telefono</span>
+</header>
+
+<div class="wrap">
+  <div id="notice" class="notice"></div>
+  <div id="banner" class="banner"><span id="bannertxt">✓ Bozza ripristinata — continua da dove avevi lasciato.</span><button id="bannerx" type="button" aria-label="Chiudi">✕</button></div>
+  <label class="fld">Il tuo nome</label>
+  <input id="nome" type="text" placeholder="Es. Mario Rossi" autocomplete="name">
+  <label class="fld">La tua DS</label>
+  <select id="ds"><option value="">— Seleziona la stazione —</option></select>
+  <div id="prog" style="display:none">
+    <div class="progress"><span id="progtxt">0 / 0 completati</span></div>
+    <div class="bar"><i id="progbar"></i></div>
+  </div>
+  <div id="draftbar" class="draftbar"><button id="clear" class="clearbtn" type="button">🗑 Svuota bozza</button></div>
+  <div id="list"><div class="empty">Seleziona prima la tua DS ↑</div></div>
+</div>
+
+<footer>
+  <button id="send" class="send" disabled>📤 INVIA</button>
+  <div class="foot2">
+    <button id="wa" class="mini">Avvisa Alessandro su WhatsApp</button>
+    <button id="dl" class="mini">Scarica riepilogo (.txt)</button>
+  </div>
+</footer>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ====== CONFIG ====== */
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbyyIB9fHeIgvZEbjOB1JFLhOd3jkhse3Cd5LT160jG4zJ6lW2Vf_TOAaJ8atk8KXvs/exec";
+const WA_NUMBER = "393209574967";
+/* ==================== */
+
+const DATA = {"DER1 - VALSAMOGGIA":[{"m":"Opel Movano","n":34},{"m":"Ford Transit Custom","n":11},{"m":"Ford Transit","n":2},{"m":"Fiat Ducato","n":1},{"m":"Fiat Scudo","n":1}],"DER2 - RIMINI":[{"m":"Citroen Jumper","n":50},{"m":"Ford Transit Custom","n":19},{"m":"Ford Transit","n":4},{"m":"Fiat Ducato","n":1},{"m":"Opel Movano","n":1}],"DLO2 - ORIGGIO":[{"m":"Opel Movano","n":25},{"m":"Opel Vivaro","n":16},{"m":"Ford Transit","n":12},{"m":"Ford Transit Custom","n":9},{"m":"Renault Master","n":6},{"m":"Fiat Scudo","n":4},{"m":"Iveco Daily","n":1}],"DLO4 - BUCCINASCO":[{"m":"Opel Movano","n":41},{"m":"Ford Transit","n":7},{"m":"Fiat Ducato","n":3},{"m":"Fiat Scudo","n":2},{"m":"Maxus Deliver9","n":1},{"m":"Opel Vivaro","n":1},{"m":"Renault Master","n":1}],"DLO5 - CASTEGNATO":[{"m":"Opel Movano","n":27},{"m":"Ford Transit Custom","n":9},{"m":"Opel Vivaro","n":6},{"m":"Ford Transit","n":2},{"m":"Fiat Scudo","n":1},{"m":"Iveco Daily","n":1},{"m":"Peugeot Expert","n":1},{"m":"Renault Master","n":1}],"DLZ2 - POMEZIA":[{"m":"Opel Vivaro","n":18},{"m":"Opel Movano","n":17},{"m":"Ford Transit Custom","n":10},{"m":"Iveco Daily","n":2},{"m":"Renault Master","n":1},{"m":"Renault Traffic","n":1}],"DVN1 - VIGONZA":[{"m":"Opel Movano","n":29},{"m":"Ford Transit Custom","n":11},{"m":"Ford Transit","n":4},{"m":"Opel Vivaro","n":3},{"m":"Fiat Ducato","n":1},{"m":"Fiat Scudo","n":1},{"m":"Iveco Daily","n":1},{"m":"Renault Master","n":1}],"GLS - CASTEL MAGGIORE":[{"m":"Iveco Daily","n":27},{"m":"Ford Transit (CASSONATO - no vano)","n":13},{"m":"Ford E-Transit","n":10},{"m":"Ford Transit","n":8},{"m":"Ford Transit Custom","n":6},{"m":"Peugeot Boxer","n":5},{"m":"Renault Master","n":5},{"m":"Renault Master (CASSONATO - no vano)","n":4},{"m":"Renault D240/D280 (CAMION)","n":3},{"m":"Maxus e-Deliver","n":2},{"m":"Rap Agile L (scooter cargo)","n":2},{"m":"Citroen Jumpy","n":1},{"m":"Iveco Daily (CASSONATO - no vano)","n":1},{"m":"Opel Movano","n":1},{"m":"Peugeot Expert","n":1},{"m":"VW/MAN","n":1}]};
+
+const $=s=>document.querySelector(s);
+const dsSel=$('#ds'),list=$('#list'),sendBtn=$('#send');
+let state=[];
+Object.keys(DATA).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;dsSel.appendChild(o);});
+dsSel.addEventListener('change',render);
+$('#nome').addEventListener('input',()=>{updateSend();scheduleSave();});
+
+/* ====== PERSISTENZA LOCALE (IndexedDB) ======
+   Bozza per DS: nome, DS e per ogni modello refrig/bott/foto (dataURL già ridimensionato).
+   Le foto in base64 superano subito il limite ~5MB di localStorage -> si usa IndexedDB. */
+const DB_NAME='testvani_v1', STORE='drafts';
+let db=null, storageOK=false;
+
+function idbSupported(){ try{ return typeof indexedDB!=='undefined' && indexedDB!==null; }catch(e){ return false; } }
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    let settled=false, req;
+    try{ req=indexedDB.open(DB_NAME,1); }catch(e){ return reject(e); }
+    // Safari in navigazione privata può non completare mai la open: timeout di sicurezza.
+    const to=setTimeout(()=>{ if(!settled){settled=true;reject(new Error('idb timeout'));} },3000);
+    req.onupgradeneeded=()=>{ const d=req.result; if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE,{keyPath:'ds'}); };
+    req.onsuccess=()=>{ if(settled)return; settled=true; clearTimeout(to); resolve(req.result); };
+    req.onerror=()=>{ if(settled)return; settled=true; clearTimeout(to); reject(req.error||new Error('idb open error')); };
+    req.onblocked=()=>{};
+  });
+}
+function store(mode){ return db.transaction(STORE,mode).objectStore(STORE); }
+function idbPut(v){ return new Promise((res,rej)=>{ try{ const r=store('readwrite').put(v); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); }
+function idbGet(k){ return new Promise((res,rej)=>{ try{ const r=store('readonly').get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); }
+function idbDel(k){ return new Promise((res,rej)=>{ try{ const r=store('readwrite').delete(k); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); }
+
+/* Feature detection con PROVA REALE di scrittura/lettura/cancellazione.
+   Gestisce Safari privato: la open può riuscire ma la scrittura fallire o essere effimera. */
+async function initStorage(){
+  if(!idbSupported()) return false;
+  try{
+    db=await openDB();
+    const probe={ds:'__probe__',t:1};
+    await idbPut(probe);
+    const got=await idbGet('__probe__');
+    await idbDel('__probe__');
+    return !!(got && got.t===1);
+  }catch(e){ return false; }
+}
+
+function showStorageNotice(ok){
+  const n=$('#notice');
+  if(ok){
+    n.className='notice ok';
+    n.textContent='✓ Puoi compilare in più riprese: ogni risposta e ogni foto restano salvate sul telefono.';
+  }else{
+    n.className='notice bad';
+    n.textContent='⚠️ Salvataggio automatico non attivo su questo browser. Completa TUTTE le foto e l’intera scheda in un’unica sessione o perderai il lavoro. Apri il link in Chrome, Edge, Firefox o Safari, senza navigazione privata.';
+  }
+}
+
+let indTimer=null;
+function showSaved(){ const el=$('#saveind'); el.classList.add('show'); clearTimeout(indTimer); indTimer=setTimeout(()=>el.classList.remove('show'),1400); }
+function showBanner(){ $('#banner').classList.add('show'); }
+function hideBanner(){ $('#banner').classList.remove('show'); }
+$('#bannerx').addEventListener('click',hideBanner);
+
+let saveTimer=null;
+function scheduleSave(){ if(!storageOK) return; clearTimeout(saveTimer); saveTimer=setTimeout(saveDraft,400); }
+async function saveDraft(){
+  if(!storageOK) return; const ds=dsSel.value; if(!ds) return;
+  const draft={ds, nome:$('#nome').value.trim(),
+    rows: state.map(it=>({m:it.m,n:it.n,refrig:it.refrig,bott:it.bott,b64:it.b64})), ts:Date.now()};
+  try{ await idbPut(draft); showSaved(); }catch(e){}
+}
+async function restoreDraft(ds){
+  if(!storageOK) return;
+  let draft; try{ draft=await idbGet(ds); }catch(e){ return; }
+  if(!draft || !draft.rows) return;
+  if(draft.nome && !$('#nome').value.trim()) $('#nome').value=draft.nome;
+  let any=false;
+  draft.rows.forEach((row,i)=>{
+    const it=state[i]; if(!it || it.m!==row.m) return;
+    if(row.refrig){ it.refrig=row.refrig; any=true; }
+    if(row.bott!=null){ it.bott=row.bott; any=true; }
+    if(row.b64){ it.b64=row.b64; any=true; }
+    paintCard(i);
+  });
+  updateProgress();
+  if(any) showBanner();
+}
+
+$('#clear').addEventListener('click',async()=>{
+  const ds=dsSel.value; if(!ds) return;
+  if(!confirm('Svuotare la bozza salvata per '+ds+'? Perderai le risposte e le foto non ancora inviate.')) return;
+  try{ await idbDel(ds); }catch(e){}
+  hideBanner(); render();
+});
+
+function render(){
+  const ds=dsSel.value;
+  state.forEach(it=>{ if(it.url) URL.revokeObjectURL(it.url); }); // libera memoria object URL
+  list.innerHTML='';
+  if(!ds){list.innerHTML='<div class="empty">Seleziona prima la tua DS ↑</div>';$('#prog').style.display='none';$('#draftbar').style.display='none';hideBanner();updateSend();return;}
+  $('#prog').style.display='block';
+  $('#draftbar').style.display=storageOK?'flex':'none';
+  state=DATA[ds].map(x=>({m:x.m,n:x.n,refrig:null,bott:null,file:null,url:null,b64:null}));
+  state.forEach((it,i)=>list.appendChild(cardEl(it,i)));
+  updateProgress();
+  hideBanner();
+  restoreDraft(ds);
+}
+function cardEl(it,i){
+  const c=document.createElement('div');c.className='card';c.id='c'+i;
+  const special=/CASSONATO|CAMION|scooter/i.test(it.m);
+  c.innerHTML=`
+    <div class="mname">${it.m}<span class="count">${it.n} ${it.n==1?'mezzo':'mezzi'}</span>${special?'<span class="flag">vano diverso — puoi saltarlo</span>':''}</div>
+    <div class="q"><span>A) Vano porta oggetti <b>refrigerato</b>?</span>
+      <div class="seg"><button type="button" data-a="si">SÌ</button><button type="button" data-a="no">NO</button></div></div>
+    <div class="q"><span>B) Quante <b>bottiglie da 0,5 L</b> ci stanno?</span>
+      <div class="seg num"><button type="button" data-b="0">0</button><button type="button" data-b="1">1</button><button type="button" data-b="2">2</button><button type="button" data-b="3">3</button></div></div>
+    <div class="photo"><label class="shot" for="f${i}">📷 Foto <span class="req">obbligatoria</span></label>
+      <input id="f${i}" type="file" accept="image/*" capture="environment"><img class="thumb" id="t${i}" alt=""></div>`;
+  c.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{it.refrig=b.dataset.a;
+    c.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on-si','on-no'));
+    b.classList.add(b.dataset.a==='si'?'on-si':'on-no');mark(i);scheduleSave();}));
+  c.querySelectorAll('[data-b]').forEach(b=>b.addEventListener('click',()=>{it.bott=b.dataset.b;
+    c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));b.classList.add('on');mark(i);scheduleSave();}));
+  c.querySelector('#f'+i).addEventListener('change',async e=>{
+    const f=e.target.files[0];if(!f)return;
+    it.file=f; if(it.url)URL.revokeObjectURL(it.url); it.url=URL.createObjectURL(f);
+    const t=c.querySelector('#t'+i);t.src=it.url;t.classList.add('show');
+    const lab=c.querySelector('label.shot');lab.classList.add('has');lab.innerHTML='📷 Rifai foto';
+    it.b64=await resize(f); mark(i); scheduleSave();});
+  return c;
+}
+/* Riporta lo stato salvato di un modello sulla card (usato dal ripristino bozza). */
+function paintCard(i){
+  const it=state[i], c=$('#c'+i); if(!c) return;
+  c.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on-si','on-no'));
+  if(it.refrig){ const b=c.querySelector('[data-a="'+it.refrig+'"]'); if(b) b.classList.add(it.refrig==='si'?'on-si':'on-no'); }
+  c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));
+  if(it.bott!=null){ const b=c.querySelector('[data-b="'+it.bott+'"]'); if(b) b.classList.add('on'); }
+  if(it.b64){ const t=c.querySelector('#t'+i); t.src=it.b64; t.classList.add('show');
+    const lab=c.querySelector('label.shot'); lab.classList.add('has'); lab.innerHTML='📷 Rifai foto'; }
+  mark(i);
+}
+function complete(it){return it.refrig!==null&&it.bott!==null&&it.b64!=null;}
+function partial(it){const s=[it.refrig!==null,it.bott!==null,it.b64!=null];return s.some(Boolean)&&!s.every(Boolean);}
+function mark(i){const c=$('#c'+i);c.classList.toggle('done',complete(state[i]));c.classList.toggle('partial',partial(state[i]));updateProgress();}
+function updateProgress(){const d=state.filter(complete).length,t=state.length;
+  $('#progtxt').textContent=`${d} / ${t} completati`;$('#progbar').style.width=(t?d/t*100:0)+'%';updateSend();}
+function updateSend(){const nome=$('#nome').value.trim();
+  const ok=dsSel.value&&nome&&state.some(complete)&&!state.some(partial);
+  sendBtn.disabled=!ok;}
+
+function resize(file){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const img=new Image();
+  img.onload=()=>{const max=1400;let{width:w,height:h}=img;if(w>h&&w>max){h=h*max/w;w=max;}else if(h>=w&&h>max){w=w*max/h;h=max;}
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+    res(cv.toDataURL('image/jpeg',0.72));};img.src=r.result;};r.readAsDataURL(file);});}
+
+function buildText(){const nome=$('#nome').value.trim(),ds=dsSel.value,d=new Date().toLocaleDateString('it-IT');
+  let t=`TEST VANI — ${ds}\nRilevatore: ${nome}\nData: ${d}\n\n`;
+  state.filter(complete).forEach(it=>{const a=it.refrig==='si'?'SÌ':'NO';t+=`• ${it.m}: refrig ${a} | bott.0,5L ${it.bott} 📷\n`;});
+  return t;}
+function payload(){return{nome:$('#nome').value.trim(),ds:dsSel.value,data:new Date().toISOString(),
+  rows:state.filter(complete).map(it=>({model:it.m,refrig:it.refrig==='si'?'SI':'NO',bott:it.bott,photo:it.b64}))};}
+function toast(msg){const el=$('#toast');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',3500);}
+
+sendBtn.addEventListener('click',async()=>{
+  sendBtn.disabled=true;sendBtn.textContent='Invio in corso…';
+  try{
+    if(ENDPOINT.startsWith('INCOLLA')) throw new Error('endpoint non configurato');
+    // no-cors: la scrittura avviene lato server; la risposta è opaca ma il salvataggio va a buon fine
+    await fetch(ENDPOINT,{method:'POST',mode:'no-cors',body:JSON.stringify(payload())});
+    toast('✅ Inviato e salvato su Drive');
+    sendBtn.textContent='✅ INVIATO';
+    // Invio riuscito: cancella la bozza locale di questa DS.
+    try{ await idbDel(dsSel.value); }catch(e){}
+    hideBanner();
+  }catch(err){
+    sendBtn.textContent='📤 INVIA';sendBtn.disabled=false;
+    // fallback: non perdo nulla
+    const t=buildText();try{await navigator.clipboard.writeText(t);}catch(e){}
+    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(t)}`,'_blank');
+    alert('Salvataggio automatico non riuscito ('+err.message+'). Ho aperto WhatsApp verso Alessandro col riepilogo (allega le foto a mano) e copiato il testo.');
+  }
+});
+$('#wa').addEventListener('click',()=>window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(buildText())}`,'_blank'));
+$('#dl').addEventListener('click',()=>{const b=new Blob([buildText()],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`TestVani_${(dsSel.value||'DS').split(' - ')[0]}.txt`;a.click();});
+
+/* Avvio: verifica lo storage locale, mostra l'avviso e ripristina l'eventuale bozza. */
+(async function(){
+  try{ storageOK=await initStorage(); }catch(e){ storageOK=false; }
+  showStorageNotice(storageOK);
+  if(storageOK && dsSel.value){ $('#draftbar').style.display='flex'; restoreDraft(dsSel.value); }
+})();
+</script>
+</body>
+</html>
