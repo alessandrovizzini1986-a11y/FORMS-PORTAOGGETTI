@@ -119,9 +119,21 @@ $('#nome').addEventListener('input',()=>{updateSend();scheduleSave();});
    Bozza per DS: nome, DS e per ogni modello refrig/bott/foto (dataURL già ridimensionato).
    Le foto in base64 superano subito il limite ~5MB di localStorage -> si usa IndexedDB. */
 const DB_NAME='testvani_v1', STORE='drafts';
-let db=null, storageOK=false;
+let db=null, storageOK=false, dbReadyPromise=null;
 
 function idbSupported(){ try{ return typeof indexedDB!=='undefined' && indexedDB!==null; }catch(e){ return false; } }
+/* Apertura del DB come singola promise condivisa: qualunque funzione che salva o
+   ripristina può chiamarla in qualsiasi momento (anche a pochi ms dal caricamento
+   pagina) senza dipendere dal timing dell'inizializzazione iniziale in fondo al file. */
+function ensureDB(){
+  if(db) return Promise.resolve(db);
+  if(!dbReadyPromise){
+    dbReadyPromise = idbSupported()
+      ? openDB().then(d=>{db=d;return d;})
+      : Promise.reject(new Error('IndexedDB non disponibile'));
+  }
+  return dbReadyPromise;
+}
 
 function openDB(){
   return new Promise((resolve,reject)=>{
@@ -143,9 +155,8 @@ function idbDel(k){ return new Promise((res,rej)=>{ try{ const r=store('readwrit
 /* Feature detection con PROVA REALE di scrittura/lettura/cancellazione.
    Gestisce Safari privato: la open può riuscire ma la scrittura fallire o essere effimera. */
 async function initStorage(){
-  if(!idbSupported()) return false;
   try{
-    db=await openDB();
+    await ensureDB();
     const probe={ds:'__probe__',t:1};
     await idbPut(probe);
     const got=await idbGet('__probe__');
@@ -172,15 +183,29 @@ function hideBanner(){ $('#banner').classList.remove('show'); }
 $('#bannerx').addEventListener('click',hideBanner);
 
 let saveTimer=null;
-function scheduleSave(){ if(!storageOK) return; clearTimeout(saveTimer); saveTimer=setTimeout(saveDraft,400); }
+/* Debounced: usato solo per il campo testo "nome" (eventi continui mentre si digita). */
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveDraft,400); }
+/* Immediato: usato per foto e pulsanti (Sì/No, bottiglie) — azioni singole e discrete,
+   non c'è motivo di ritardarle e sono le più preziose da non perdere. */
+function saveDraftNow(){ clearTimeout(saveTimer); return saveDraft(); }
 async function saveDraft(){
-  if(!storageOK) return; const ds=dsSel.value; if(!ds) return;
+  const ds=dsSel.value; if(!ds) return;
+  // Non ci si affida al flag storageOK (potrebbe non essere ancora risolto appena aperta la pagina):
+  // si tenta comunque il salvataggio e si ignora silenziosamente se lo storage non è scrivibile.
+  try{ await ensureDB(); }catch(e){ return; }
   const draft={ds, nome:$('#nome').value.trim(),
     rows: state.map(it=>({m:it.m,n:it.n,refrig:it.refrig,bott:it.bott,b64:it.b64})), ts:Date.now()};
   try{ await idbPut(draft); showSaved(); }catch(e){}
 }
+/* Salvataggio di sicurezza quando la pagina viene messa in background o chiusa:
+   copre il caso in cui l'utente chiude il browser prima che scatti il debounce. */
+function flushSave(){ if(dsSel.value) saveDraftNow(); }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSave(); });
+window.addEventListener('pagehide',flushSave);
+window.addEventListener('blur',flushSave);
+
 async function restoreDraft(ds){
-  if(!storageOK) return;
+  try{ await ensureDB(); }catch(e){ return; }
   let draft; try{ draft=await idbGet(ds); }catch(e){ return; }
   if(!draft || !draft.rows) return;
   if(draft.nome && !$('#nome').value.trim()) $('#nome').value=draft.nome;
@@ -229,9 +254,9 @@ function cardEl(it,i){
       <input id="f${i}" type="file" accept="image/*" capture="environment"><img class="thumb" id="t${i}" alt=""></div>`;
   c.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{it.refrig=b.dataset.a;
     c.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on-si','on-no'));
-    b.classList.add(b.dataset.a==='si'?'on-si':'on-no');mark(i);scheduleSave();}));
+    b.classList.add(b.dataset.a==='si'?'on-si':'on-no');mark(i);saveDraftNow();}));
   c.querySelectorAll('[data-b]').forEach(b=>b.addEventListener('click',()=>{it.bott=b.dataset.b;
-    c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));b.classList.add('on');mark(i);scheduleSave();}));
+    c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));b.classList.add('on');mark(i);saveDraftNow();}));
   c.querySelector('#f'+i).addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
     const t=c.querySelector('#t'+i), lab=c.querySelector('label.shot');
@@ -248,7 +273,7 @@ function cardEl(it,i){
       lab.innerHTML='📷 Foto <span class="req">obbligatoria</span>';
       alert('Non riesco a elaborare questa foto (formato o dimensione non supportati). Riscattala con la FOTOCAMERA invece di sceglierla dalla galleria.');
     }
-    mark(i); scheduleSave();});
+    mark(i); saveDraftNow();});
   return c;
 }
 /* Riporta lo stato salvato di un modello sulla card (usato dal ripristino bozza). */
