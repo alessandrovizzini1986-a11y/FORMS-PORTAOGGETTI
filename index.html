@@ -234,10 +234,21 @@ function cardEl(it,i){
     c.querySelectorAll('[data-b]').forEach(x=>x.classList.remove('on'));b.classList.add('on');mark(i);scheduleSave();}));
   c.querySelector('#f'+i).addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
+    const t=c.querySelector('#t'+i), lab=c.querySelector('label.shot');
     it.file=f; if(it.url)URL.revokeObjectURL(it.url); it.url=URL.createObjectURL(f);
-    const t=c.querySelector('#t'+i);t.src=it.url;t.classList.add('show');
-    const lab=c.querySelector('label.shot');lab.classList.add('has');lab.innerHTML='📷 Rifai foto';
-    it.b64=await resize(f); mark(i); scheduleSave();});
+    t.src=it.url;t.classList.add('show');
+    lab.classList.add('has');lab.innerHTML='⏳ Elaborazione foto…';
+    const b64=await resize(f);
+    if(b64){
+      it.b64=b64; lab.innerHTML='📷 Rifai foto';
+    }else{
+      // Foto non elaborabile (formato non decodificabile es. HEIC da galleria, o troppo grande): non contarla.
+      it.b64=null; if(it.url){URL.revokeObjectURL(it.url);it.url=null;}
+      t.src='';t.classList.remove('show');lab.classList.remove('has');
+      lab.innerHTML='📷 Foto <span class="req">obbligatoria</span>';
+      alert('Non riesco a elaborare questa foto (formato o dimensione non supportati). Riscattala con la FOTOCAMERA invece di sceglierla dalla galleria.');
+    }
+    mark(i); scheduleSave();});
   return c;
 }
 /* Riporta lo stato salvato di un modello sulla card (usato dal ripristino bozza). */
@@ -260,10 +271,57 @@ function updateSend(){const nome=$('#nome').value.trim();
   const ok=dsSel.value&&nome&&state.some(complete)&&!state.some(partial);
   sendBtn.disabled=!ok;}
 
-function resize(file){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const img=new Image();
-  img.onload=()=>{const max=1400;let{width:w,height:h}=img;if(w>h&&w>max){h=h*max/w;w=max;}else if(h>=w&&h>max){w=w*max/h;h=max;}
-    const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
-    res(cv.toDataURL('image/jpeg',0.72));};img.src=r.result;};r.readAsDataURL(file);});}
+/* Ridimensiona qualunque foto (iPhone HEIC/JPEG, Samsung ad alta risoluzione) a max 1400px
+   sul lato lungo, output SEMPRE JPEG q0.72. Robusto per non buggare/crashare:
+   - createImageBitmap come strada preferita: decode efficiente e orientamento EXIF corretto;
+   - fallback a FileReader+Image se non disponibile;
+   - gestione onerror (es. HEIC non decodificabile) e timeout: la Promise si risolve SEMPRE;
+   - risolve null se non è possibile elaborare, così il chiamante avvisa e non conta la foto. */
+const MAXDIM=1400, JPEG_Q=0.72;
+function fit(w,h){let W=w,H=h;
+  if(w>=h && w>MAXDIM){H=Math.round(h*MAXDIM/w);W=MAXDIM;}
+  else if(h>w && h>MAXDIM){W=Math.round(w*MAXDIM/h);H=MAXDIM;}
+  return {W,H};}
+function drawToJpeg(src,w,h){
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  const ctx=cv.getContext('2d');if(!ctx)return null;
+  ctx.drawImage(src,0,0,w,h);
+  let out=null;try{out=cv.toDataURL('image/jpeg',JPEG_Q);}catch(e){out=null;}
+  cv.width=cv.height=1; // libera subito la memoria del canvas (importante su iOS)
+  return (out && out.length>100)?out:null;}
+function resize(file){
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=v=>{ if(!done){done=true;clearTimeout(guard);resolve(v);} };
+    const guard=setTimeout(()=>finish(null),15000); // rete di sicurezza: mai appeso
+    if(typeof createImageBitmap==='function'){
+      (async()=>{
+        let bmp=null;
+        try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }
+        catch(e){ try{ bmp=await createImageBitmap(file); }catch(e2){ bmp=null; } }
+        if(bmp){
+          let out=null;
+          try{ const {W,H}=fit(bmp.width,bmp.height); out=drawToJpeg(bmp,W,H); }catch(e){}
+          if(bmp.close) bmp.close();
+          if(out) return finish(out);
+        }
+        fallback();
+      })();
+    } else { fallback(); }
+    function fallback(){
+      const r=new FileReader();
+      r.onerror=()=>finish(null);
+      r.onload=()=>{
+        const img=new Image();
+        img.onerror=()=>finish(null); // es. HEIC non decodificabile dal browser
+        img.onload=()=>{ let out=null;
+          try{ const {W,H}=fit(img.naturalWidth||img.width,img.naturalHeight||img.height); out=drawToJpeg(img,W,H); }catch(e){}
+          finish(out); };
+        img.src=r.result;
+      };
+      try{ r.readAsDataURL(file); }catch(e){ finish(null); }
+    }
+  });}
 
 function buildText(){const nome=$('#nome').value.trim(),ds=dsSel.value,d=new Date().toLocaleDateString('it-IT');
   let t=`TEST VANI — ${ds}\nRilevatore: ${nome}\nData: ${d}\n\n`;
