@@ -277,7 +277,7 @@ function updateSend(){const nome=$('#nome').value.trim();
    - fallback a FileReader+Image se non disponibile;
    - gestione onerror (es. HEIC non decodificabile) e timeout: la Promise si risolve SEMPRE;
    - risolve null se non è possibile elaborare, così il chiamante avvisa e non conta la foto. */
-const MAXDIM=1400, JPEG_Q=0.72;
+const MAXDIM=1280, JPEG_Q=0.68;
 function fit(w,h){let W=w,H=h;
   if(w>=h && w>MAXDIM){H=Math.round(h*MAXDIM/w);W=MAXDIM;}
   else if(h>w && h>MAXDIM){W=Math.round(w*MAXDIM/h);H=MAXDIM;}
